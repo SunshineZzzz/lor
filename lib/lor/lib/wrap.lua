@@ -1,8 +1,3 @@
--- Copyright (C) Pixel Studio
--- All rights reserved.
--- 
--- Author : YangZhang
--- Date   : 06/09/2024
 -- Comment: 创建和管理Web应用程序
 
 local setmetatable = setmetatable
@@ -27,7 +22,7 @@ function _M:new(create_app, Router, Group, Request, Response)
 end
 
 -- 创建web应用
--- Generally, this should only be used by `xxmini` framework itself.
+-- Generally, this should only be used by `lor` framework itself.
 function _M:create_app(options)
 	self.app = self.fn(options)
 	return self.app
