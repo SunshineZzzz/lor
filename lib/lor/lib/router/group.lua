@@ -1,3 +1,5 @@
+-- Comment: 路由组实现
+
 local setmetatable = setmetatable
 local pairs = pairs
 local type = type
@@ -15,127 +17,139 @@ local random = utils.random
 local clone = utils.clone
 local handler_error_tip = "handler must be `function` that matches `function(req, res, next) ... end`"
 
+-- 路由组
 local Group = {}
 
+-- 创建
 function Group:new()
-    local group = {}
+	local group = {}
 
-    group.id = random()
-    group.name =  "group-" .. group.id
-    group.is_group = true
-    group.apis = {}
-    self:build_method()
+	group.id = random()
+	group.name =  "group-" .. group.id
+	group.is_group = true
+	-- [path][method] = func_array
+	group.apis = {}
+	-- 增加函数
+	self:build_method()
 
-    setmetatable(group, {
-        __index = self,
-        __call = self._call,
-        __tostring = function(s)
-            return s.name
-        end
-    })
+	setmetatable(group, {
+		__index = self,
+		__call = self._call,
+		__tostring = function(s)
+			return s.name
+		end
+	})
 
-    return group
+	return group
 end
 
 --- a magick for usage like `lor:Router()`
 -- generate a new group for different routes group
+-- 克隆一个新的路由组
 function Group:_call()
-    local cloned = clone(self)
-    cloned.id = random()
-    cloned.name = cloned.name .. ":clone-" .. cloned.id
-    return cloned
+	local cloned = clone(self)
+	cloned.id = random()
+	cloned.name = cloned.name .. ":clone-" .. cloned.id
+	return cloned
 end
 
+-- 获取API
 function Group:get_apis()
-    return self.apis
+	return self.apis
 end
 
+-- 设置API，特定路径和HTTP方法添加处理器们
 function Group:set_api(path, method, ...)
-    if not path or not method then
-        return error("`path` & `method` should not be nil.")
-    end
+	if not path or not method then
+		return error("`path` & `method` should not be nil.")
+	end
 
-    local handlers = {...}
-    if not next(handlers) then
-        return error("handler should not be nil or empty")
-    end
+	local handlers = {...}
+	if not next(handlers) then
+		return error("handler should not be nil or empty")
+	end
 
-    if type(path) ~= "string" or type(method) ~= "string" or type(handlers) ~= "table" then
-        return error("params type error.")
-    end
+	if type(path) ~= "string" or type(method) ~= "string" or type(handlers) ~= "table" then
+		return error("params type error.")
+	end
 
-    local extended_handlers = {}
-    for _, h in ipairs(handlers) do
-        if type(h) == "function" then
-            table_insert(extended_handlers, h)
-        elseif type(h) == "table" then
-            for _, hh in ipairs(h) do
-                if type(hh) == "function" then
-                    table_insert(extended_handlers, hh)
-                else
-                    error(handler_error_tip)
-                end
-            end
-        else
-            error(handler_error_tip)
-        end
-    end
+	local extended_handlers = {}
+	for _, h in ipairs(handlers) do
+		if type(h) == "function" then
+			table_insert(extended_handlers, h)
+		elseif type(h) == "table" then
+			for _, hh in ipairs(h) do
+				if type(hh) == "function" then
+					table_insert(extended_handlers, hh)
+				else
+					error(handler_error_tip)
+				end
+			end
+		else
+			error(handler_error_tip)
+		end
+	end
 
-    method = string_lower(method)
-    if not supported_http_methods[method] then
-        return error(string_format("[%s] method is not supported yet.", method))
-    end
+	method = string_lower(method)
+	if not supported_http_methods[method] then
+		return error(string_format("[%s] method is not supported yet.", method))
+	end
 
-    self.apis[path] = self.apis[path] or {}
-    self.apis[path][method] = extended_handlers
+	self.apis[path] = self.apis[path] or {}
+	self.apis[path][method] = extended_handlers
 end
 
+-- 为每个支持的HTTP方法动态地定义了一个方法，
+-- 使得路由组实例能够通过类似group:get()或group:post()等调用来设置路由处理函数
 function Group:build_method()
-    for m, _ in pairs(supported_http_methods) do
-        m = string_lower(m)
+	for m, _ in pairs(supported_http_methods) do
+		m = string_lower(m)
 
-        -- 1. group_router:get(func1)
-        -- 2. group_router:get(func1, func2)
-        -- 3. group_router:get({func1, func2})
-        -- 4. group_router:get(path, func1)
-        -- 5. group_router:get(path, func1, func2)
-        -- 6. group_router:get(path, {func1, func2})
-        Group[m] = function(myself, ...)
-            local params = {...}
-            if not next(params) then return error("params should not be nil or empty") end
+		-- 1. group_router:get(func1)
+		-- 2. group_router:get(func1, func2)
+		-- 3. group_router:get({func1, func2})
+		-- 4. group_router:get(path, func1)
+		-- 5. group_router:get(path, func1, func2)
+		-- 6. group_router:get(path, {func1, func2})
+		Group[m] = function(myself, ...)
+			local params = {...}
+			if not next(params) then return error("params should not be nil or empty") end
 
-            -- case 1 or 3
-            if #params == 1 then
-                if type(params[1]) ~= "function" and type(params[1]) ~= "table" then
-                    return error("it must be an function if there's only one param")
-                end
+			-- case 1 or 3
+			if #params == 1 then
+				if type(params[1]) ~= "function" and type(params[1]) ~= "table" then
+					return error("it must be an function if there's only one param")
+				end
 
-                if type(params[1]) == "table" and #(params[1]) == 0 then
-                    return error("params should not be nil or empty")
-                end
+				if type(params[1]) == "table" and #(params[1]) == 0 then
+					return error("params should not be nil or empty")
+				end
 
-                return Group.set_api(myself, "", m, ...)
-            end
+				return Group.set_api(myself, "", m, ...)
+			end
 
-            -- case 2,4,5,6
-            if #params > 1 then
-                if type(params[1]) == "string" then -- case 4,5,6
-                    return Group.set_api(myself, params[1], m, unpack(params, 2))
-                else -- case 2
-                    return Group.set_api(myself, "", m, ...)
-                end
-            end
+			-- case 2,4,5,6
+			if #params > 1 then
+				if type(params[1]) == "string" then
+					-- case 4,5,6
+					return Group.set_api(myself, params[1], m, unpack(params, 2))
+				else 
+					-- case 2
+					return Group.set_api(myself, "", m, ...)
+				end
+			end
 
-            error("error params for group route define")
-        end
-    end
+			error("error params for group route define")
+		end
+	end
 end
 
+-- 克隆一个新的路由组
 function Group:clone()
-    local cloned = clone(self)
-    cloned.id = random()
-    cloned.name = cloned.name .. ":clone-" .. cloned.id
-    return cloned
+	local cloned = clone(self)
+	cloned.id = random()
+	cloned.name = cloned.name .. ":clone-" .. cloned.id
+	return cloned
 end
 
 return Group
