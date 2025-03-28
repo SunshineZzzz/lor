@@ -1,4 +1,5 @@
--- from lua-resty-session
+-- Comment: aes对称加密，from lua-resty-session
+
 local setmetatable = setmetatable
 local tonumber     = tonumber
 local aes          = require "resty.aes"
@@ -11,15 +12,15 @@ local CIPHER_MODES = {
     cbc    = "cbc",
     cfb1   = "cfb1",
     cfb8   = "cfb8",
-    cfb128 = "cfb128",
+	cfb128 = "cfb128",
     ofb    = "ofb",
     ctr    = "ctr"
 }
 
 local CIPHER_SIZES = {
-    ["128"] = 128,
-    ["192"] = 192,
-    ["256"] = 256
+	["128"] = 128,
+	["192"] = 192,
+	["256"] = 256
 }
 
 local defaults = {
@@ -34,21 +35,23 @@ local cipher = {}
 cipher.__index = cipher
 
 function cipher.new(config)
-    local a = config and config.aes or defaults
-    return setmetatable({
+	local a = config and config.aes or defaults
+	return setmetatable({
         size   = CIPHER_SIZES[a.size or defaults.size]   or 256,
         mode   = CIPHER_MODES[a.mode or defaults.mode]   or "cbc",
         hash   = hashes[a.hash       or defaults.hash]   or hashes.sha512,
         rounds = tonumber(a.rounds   or defaults.rounds) or 1
-    }, cipher)
+	}, cipher)
 end
 
+-- 加密，接受数据d，密钥k，盐s 
 function cipher:encrypt(d, k, s)
-    return aes:new(k, s, cip(self.size, self.mode), self.hash, self.rounds):encrypt(d)
+	return aes:new(k, s, cip(self.size, self.mode), self.hash, self.rounds):encrypt(d)
 end
 
+-- 解密，接受数据d，密钥k，盐s 
 function cipher:decrypt(d, k, s)
-    return aes:new(k, s, cip(self.size, self.mode), self.hash, self.rounds):decrypt(d)
+	return aes:new(k, s, cip(self.size, self.mode), self.hash, self.rounds):decrypt(d)
 end
 
 return cipher
