@@ -10,7 +10,7 @@ local ngx_null = ngx.null
 local ngx_log = ngx.log
 local ngx_crit = ngx.CRIT
 local resty_redis = require("resty.redis")
-local utils = require("xxmini.lib.utils.utils")
+local utils = require("lor.lib.utils.utils")
 
 -- 默认配置
 local defaults = {

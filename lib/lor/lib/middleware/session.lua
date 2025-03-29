@@ -52,7 +52,7 @@ local session_middleware = function(config)
 	end
 	
 	local err_tip = "session_aes_key should be set for session middleware"
-	-- backward compatibility for xxmini < v0.3.2
+	-- backward compatibility for lor < v0.3.2
 	config.session_aes_key = config.session_aes_key or "custom_session_aes_key"
 	if not config.session_aes_key then
 		ngx.log(ngx.ERR, err_tip)
