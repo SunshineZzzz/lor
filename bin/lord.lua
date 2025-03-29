@@ -1,3 +1,5 @@
+-- Comment: lor创建和管理
+
 package.path = './?.lua;' .. package.path
 
 local generator = require("bin.scaffold.generator")
@@ -19,29 +21,33 @@ Commands:
 ]]
 
 local function exec(args)
-    local arg = table.remove(args, 1)
+	local arg = table.remove(args, 1)
 
-    -- parse commands and options
-    if arg == 'new' and args[1] then
-        generator.new(args[1]) -- generate example code
-    elseif arg == 'start' then
-        lor.start() -- start application
-    elseif arg == 'stop' then
-        lor.stop() -- stop application
-    elseif arg == 'restart' then
-        lor.stop()
-        lor.start()
-    elseif arg == 'reload' then
-        lor.reload()
-    elseif arg == 'help' or arg == '-h' then
-        print(usages)
-    elseif arg == 'version' or arg == '-v' then
-        print(version) -- show lor framework version
-    elseif arg == nil then
-        print(usages)
-    else
-        print("[lord] unsupported commands or options, `lord -h` to check usages.")
-    end
+	-- parse commands and options
+	if arg == 'new' and args[1] then
+		-- generate example code
+		generator.new(args[1])
+	elseif arg == 'start' then
+		-- start application
+		lor.start()
+	elseif arg == 'stop' then
+		-- stop application
+		lor.stop()
+	elseif arg == 'restart' then
+		lor.stop()
+		lor.start()
+	elseif arg == 'reload' then
+		lor.reload()
+	elseif arg == 'help' or arg == '-h' then
+		print(usages)
+	elseif arg == 'version' or arg == '-v' then
+		-- show lor framework version
+		print(version)
+	elseif arg == nil then
+		print(usages)
+	else
+		print("[lord] unsupported commands or options, `lord -h` to check usages.")
+	end
 end
 
 return exec

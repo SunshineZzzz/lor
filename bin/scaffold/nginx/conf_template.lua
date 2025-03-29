@@ -1,7 +1,9 @@
+-- Comment: 生成Nginx配置文件模板
+
 local _M = {}
 
 function _M:get_ngx_conf_template()
-    return [[
+	return [[
 # user www www;
 pid tmp/{{LOR_ENV}}-nginx.pid;
 
@@ -9,37 +11,38 @@ pid tmp/{{LOR_ENV}}-nginx.pid;
 worker_processes 4;
 
 events {
-    # Number of connections per worker
-    worker_connections 4096;
+	# Number of connections per worker
+	worker_connections 4096;
 }
 
 http {
-    sendfile on;
-    include ./mime.types;
+	sendfile on;
+	include ./mime.types;
 
-    {{LUA_PACKAGE_PATH}}
-    lua_code_cache on;
+	{{LUA_PACKAGE_PATH}}
+	{{LUA_PACKAGE_CPATH}}
+	lua_code_cache on;
 
-    server {
-        # List port
-        listen {{PORT}};
+	server {
+		# List port
+		listen {{PORT}};
 
-        # Access log
-        access_log logs/{{LOR_ENV}}-access.log;
+		# Access log
+		access_log logs/{{LOR_ENV}}-access.log;
 
-        # Error log
-        error_log logs/{{LOR_ENV}}-error.log;
+		# Error log
+		error_log logs/{{LOR_ENV}}-error.log;
 
-        # this variable is for view render(lua-resty-template)
-        set $template_root '';
+		# this variable is for view render(lua-resty-template)
+		set $template_root '';
 
-        location /static {
-            alias {{STATIC_FILE_DIRECTORY}}; #app/static;
-        }
+		location /static {
+			alias {{STATIC_FILE_DIRECTORY}}; #app/static;
+		}
 
-        # lor runtime
-        {{CONTENT_BY_LUA_FILE}}
-    }
+		# lor runtime
+		{{CONTENT_BY_LUA_FILE}}
+	}
 }
 ]]
 end
