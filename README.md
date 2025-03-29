@@ -1,3 +1,24 @@
+# Windows单元测试
+1. 安装luarocks
+2. 命令行执行
+```shell
+luarocks config lua_version 5.1
+luarocks install busted
+```
+3. busted安装路径下，比如"C:\Users\xxx\AppData\Roaming\luarocks\bin"下，增加文件bustedforresty.bat
+```cmd
+@echo off
+setlocal
+
+set "LUAROCKS_SYSCONFDIR=C:\Program Files\luarocks"
+"D:\openresty安装环境\resty.bat" --errlog-level error -e "package.path='C:\\Users\\xxx\\AppData\\Roaming\\luarocks\\share\\lua\\5.1\\?.lua;C:\\Users\\xxx\\AppData\\Roaming\\luarocks\\share\\lua\\5.1\\?\\init.lua;'..package.path;package.cpath='C:\\Users\\xxx\\AppData\\Roaming\\luarocks\\lib\\lua\\5.1\\?.dll;'..package.cpath;local k,l,_=pcall(require,'luarocks.loader') _=k and l.add_context('busted','2.2.0-1')" "C:\Users\xxx\AppData\Roaming\luarocks\lib\luarocks\rocks-5.1\busted\2.2.0-1\bin\busted" %*
+
+exit /b %ERRORLEVEL%
+```
+4. 单元测试目录执行
+```cmd
+bustedforresty.bat .
+```
 # Lor
 
 [![https://travis-ci.org/sumory/lor.svg?branch=master](https://travis-ci.org/sumory/lor.svg?branch=master)](https://travis-ci.org/sumory/lor)  [![GitHub release](https://img.shields.io/github/release/sumory/lor.svg)](https://github.com/sumory/lor/releases/latest) [![license](https://img.shields.io/github/license/sumory/lor.svg)](https://github.com/sumory/lor/blob/master/LICENSE)
