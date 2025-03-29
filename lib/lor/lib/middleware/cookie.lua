@@ -1,8 +1,3 @@
--- Copyright (C) Pixel Studio
--- All rights reserved.
--- 
--- Author : YangZhang
--- Date   : 09/09/2024
 -- Comment: 绑定cookie相关函数的中间件
 
 local ck = require("resty.cookie")
