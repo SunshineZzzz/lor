@@ -26,7 +26,7 @@ install_lord: install_lor
 	@echo "install lord cli to "${LORD_BIN}"/"
 
 	@echo "#!/usr/bin/env resty" > tmp_lor_bin
-	@echo "package.path=\""${LOR_HOME}/lor"/?.lua;;\"" >> tmp_lor_bin
+	@echo "package.path=\""${LOR_HOME}/lor"/?.lua;"${LOR_HOME}/lor"/?/init.lua;\"" >> tmp_lor_bin
 	@echo "if arg[1] and arg[1] == \"path\" then" >> tmp_lor_bin
 	@echo "    print(\"${LOR_HOME}/lor\")" >> tmp_lor_bin
 	@echo "    return" >> tmp_lor_bin
