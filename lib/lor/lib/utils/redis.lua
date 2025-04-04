@@ -1,5 +1,6 @@
 -- Comment: redis封装
 
+local setmetatable = setmetatable
 local rawget = rawget
 local type = type
 local unpack = unpack
@@ -7,8 +8,6 @@ local ipairs = ipairs
 local table_insert = table.insert
 local table_remove = table.remove
 local ngx_null = ngx.null
-local ngx_log = ngx.log
-local ngx_crit = ngx.CRIT
 local resty_redis = require("resty.redis")
 local utils = require("lor.lib.utils.utils")
 
@@ -98,13 +97,15 @@ local function do_command(self, cmd, ... )
 	end
 
 	local ok, err = self:_connect(redis)
-	if not ok or err then
+	if not ok then
+		redis:close()
 		return nil, err
 	end
 
 	local fun = redis[cmd]
 	local result, err = fun(redis, ...)
-	if not result or err then
+	if not result then
+		redis:close()
 		return nil, err
 	end
 
@@ -112,7 +113,10 @@ local function do_command(self, cmd, ... )
 		result = nil
 	end
 	
-	self.set_keepalive_mod(redis)
+	ok, err = self._set_keepalive(redis)
+	if not ok then
+		redis:close()
+	end
 
 	return result, err
 end
@@ -129,10 +133,10 @@ end})
 
 -- 连接
 function _M._connect(self, redis)    
-	redis:set_timeout(self.timeout)
+	redis:set_timeouts(self.timeout, self.timeout, self.timeout)
 	
 	local ok, err = redis:connect(self.host, self.port)
-	if not ok or err then
+	if not ok then
 		return nil, err
 	end
 
@@ -143,14 +147,14 @@ function _M._connect(self, redis)
 		end
 
 		local ok, err = redis:auth(self.password)
-		if not ok or err then
+		if not ok then
 			return nil, err
 		end
 	end
 
 	if self.index ~= 0 then
 		local ok, err = redis:select(db_index)
-		if not ok or err then
+		if not ok then
 			return nil, err
 		end
 	end
@@ -189,6 +193,7 @@ function _M.commit_pipeline(self)
 
 	local ok, err = self:_connect(redis)
 	if not ok then
+		redis:close()
 		return nil, err
 	end
 
@@ -200,7 +205,8 @@ function _M.commit_pipeline(self)
 	end
 
 	local results, err = redis:commit_pipeline()
-	if not results or err then
+	if not results then
+		redis:close()
 		return nil, err
 	end
 
@@ -208,7 +214,10 @@ function _M.commit_pipeline(self)
 		results = {}
 	end
 	
-	self._set_keepalive(self, redis)
+	ok, err = self._set_keepalive(self, redis)
+	if not ok then
+		redis:close()
+	end
 
 	for i, value in ipairs(results) do
 		if is_redis_null(value) then
@@ -228,11 +237,13 @@ function _M.subscribe(self, channel)
 
 	local ok, err = self:_connect(redis)
 	if not ok then
+		redis:close()
 		return nil, err
 	end
 
 	local res, err = redis:subscribe(channel)
 	if not res then
+		redis:close()
 		return nil, err
 	end
 
@@ -240,13 +251,17 @@ function _M.subscribe(self, channel)
 		if do_read == nil or do_read == true then
 			res, err = redis:read_reply()
 			if not res then
+				redis:close()
 				return nil, err
 			end
 			return res, nil
 		end
 	  
 		redis:unsubscribe(channel)
-		self._set_keepalive(self, redis)
+		local ok, err = self._set_keepalive(self, redis)
+		if not ok then
+			redis:close()
+		end
 		return
 	end
 
