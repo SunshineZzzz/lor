@@ -1,7 +1,7 @@
 -- Comment: 用于生成Nginx配置指令
 --        : most code is from https://github.com/idevz/vanilla/blob/master/vanilla/sys/nginx/directive.lua
 
-package.path = './app/?.lua;' .. package.path
+package.path = './app/?.lua;./app/?/init.lua;' .. package.path
 package.cpath = './app/library/?.so;' .. package.cpath
 
 local Directive = {}
@@ -29,7 +29,7 @@ end
 function Directive:luaPackageCpath(lua_cpath)
 	local path = package.cpath
 	if lua_cpath ~= nil then path = lua_cpath .. path end
-	local res = [[lua_package_cpath "]] .. path .. [[;;";]]
+	local res = [[lua_package_cpath "]] .. path .. [[;;;";]]
 	return res
 end
 

@@ -31,7 +31,7 @@ http {
 		access_log logs/{{LOR_ENV}}-access.log;
 
 		# Error log
-		error_log logs/{{LOR_ENV}}-error.log;
+		error_log logs/{{LOR_ENV}}-error.log debug;
 
 		# this variable is for view render(lua-resty-template)
 		set $template_root '';
