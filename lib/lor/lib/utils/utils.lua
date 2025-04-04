@@ -171,12 +171,17 @@ function _M.slim_path(path)
 end
 
 -- 将字符串按照指定的分隔符进行分割，返回分割后的结果作为一个数组
-function _M.split(str, delimiter)
+function _M.split(str, delimiter, originDelimiter)
 	if not str or str == "" then return {} end
 	if not delimiter or delimiter == "" then return { str } end
 
+	local inputStr = str .. delimiter
+	if originDelimiter then
+		inputStr = str .. originDelimiter
+	end
+
 	local result = {}
-	local it, _ = sgmatch(str .. delimiter, "(.*?)" .. delimiter, "jo")
+	local it, _ = sgmatch(inputStr, "(.*?)" .. delimiter, "jo")
 	if not it then
 		return
 	end
