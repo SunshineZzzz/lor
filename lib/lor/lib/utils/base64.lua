@@ -19,6 +19,16 @@ local DECODE_CHARS = {
 
 local base64 = {}
 
+-- 纯编码
+function base64.pure_encode(value)
+	return base64enc(value)
+end
+
+-- 纯解码
+function base64.pure_decode(value)
+	return base64dec(value)
+end
+
 -- 编码
 function base64.encode(value)
 	local re, _ = sgsub(base64enc(value), "[+/=]", function(m) return ENCODE_CHARS[m[0]] end, "jo")
