@@ -200,12 +200,12 @@ function _M.insert(self, sql, ...)
 end
 
 -- update
-function _M:update(self, sql, ...)
+function _M.update(self, sql, ...)
 	return self:_query(sql, ...)
 end
 
 -- delete
-function _M:delete(self, sql, ...)
+function _M.delete(self, sql, ...)
 	return self:_query(sql, ...)
 end
 
