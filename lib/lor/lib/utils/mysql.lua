@@ -143,15 +143,21 @@ function _M._set_keepalive(self, mysql)
 end
 
 -- 执行
-function _M._exec(self, sql)
-	local mysql, err = resty_mysql:new()
-	if not mysql then
-		return nil, err
-	end
+function _M._exec(self, sql, out_mysql)
+	local mysql
+	if not out_mysql then
+		local err
+		mysql, err = resty_mysql:new()
+		if not mysql then
+			return nil, err
+		end
 
-	local ok, err = self:_connect(mysql)
-	if not ok then
-		return nil, err
+		local ok, err = self:_connect(mysql)
+		if not ok then
+			return nil, err
+		end
+	else
+		mysql = out_mysql
 	end
 
 	local res, err = mysql:query(sql)
@@ -173,40 +179,124 @@ function _M._exec(self, sql)
 		table_insert(ress, res)
 	end
 
-	ok, err = self:_set_keepalive(mysql)
-	if not ok then
-		mysql:close()
+	if not out_mysql then
+		ok, err = self:_set_keepalive(mysql)
+		if not ok then
+			mysql:close()
+		end
 	end
+
 	return ress, nil
 end
 
 -- 查询
-function _M._query(self, sql, ...)
+function _M._query(self, out_mysql, sql, ...)
 	local sql, err = parse_sql(sql, ...)
 	if not sql then
 		return nil, err
 	end
-	return self:_exec(sql)
+	return self:_exec(sql, out_mysql)
 end
 
 -- select
 function _M.select(self, sql, ...)
-	return self:_query(sql, ...)
+	return self:_query(nil, sql, ...)
 end
 
 -- insert
 function _M.insert(self, sql, ...)
-	return self:_query(sql, ...)
+	return self:_query(nil, sql, ...)
 end
 
 -- update
 function _M.update(self, sql, ...)
-	return self:_query(sql, ...)
+	return self:_query(nil, sql, ...)
 end
 
 -- delete
 function _M.delete(self, sql, ...)
-	return self:_query(sql, ...)
+	return self:_query(nil, sql, ...)
+end
+
+-- 开始事务
+function _M.begin(self)
+	local mysql, err = resty_mysql:new()
+	if not mysql then
+		return nil, err
+	end
+
+	local ok, err = self:_connect(mysql)
+	if not ok then
+		return nil, err
+	end
+
+    local res, err = mysql:query("BEGIN")
+    if not res then
+        mysql:close()
+        return nil, err
+    end
+
+    return mysql, nil
+end
+
+-- 提交事务
+function _M.commit(self, mysql)
+    if not mysql then
+        return false, "no active transaction"
+    end
+
+    local res, err = mysql:query("COMMIT")
+    if not res then
+        mysql:close()
+        return false, err
+    end
+
+    local ok, err = self:_set_keepalive(mysql)
+    if not ok then
+        mysql:close()
+    end
+
+    return true, nil
+end
+
+-- 回滚事务
+function _M.rollback(self, mysql)
+    if not mysql then
+        return false, "no active transaction"
+    end
+
+    local res, err = mysql:query("ROLLBACK")
+    if not res then
+        mysql:close()
+        return false, err
+    end
+
+    local ok, err = self:_set_keepalive(mysql)
+    if not ok then
+        mysql:close()
+    end
+
+    return true, nil
+end
+
+-- select
+function _M.tx_select(self, out_mysql, sql, ...)
+	return self:_query(out_mysql, sql, ...)
+end
+
+-- insert
+function _M.tx_insert(self, out_mysql, sql, ...)
+	return self:_query(out_mysql, sql, ...)
+end
+
+-- update
+function _M.tx_update(self, out_mysql, sql, ...)
+	return self:_query(out_mysql, sql, ...)
+end
+
+-- delete
+function _M.tx_delete(self, out_mysql, sql, ...)
+	return self:_query(out_mysql, sql, ...)
 end
 
 -- 创建
