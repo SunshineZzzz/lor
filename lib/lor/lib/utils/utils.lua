@@ -15,6 +15,7 @@ local json = require("cjson")
 local lfs = require('resty.lfs_ffi')
 local OS = require("ffi").os
 local os_remove = os.remove
+local os_rename = os.rename
 local io_open = io.open
 local upload = require("resty.upload")
 local next = next
@@ -225,6 +226,14 @@ function _M.dirname(path)
 	return path
 end
 
+-- 文件移动
+function _M.file_move(src, dest)
+	if not src or not dest or not _M.file_exists(src) then
+		return nil, "src not exist"
+	end
+	return os_rename(src, dest)
+end
+
 -- 文件删除
 function _M.file_remove(path)
 	return os_remove(path)
@@ -282,40 +291,48 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 	allowed_types = allowed_types or {}
 	local form, err = upload:new(config.chunk_size)
 	if not form then
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	end
 
 	form:set_timeout(config.recieve_timeout)
 	
 	local file
 	local file_name, origin_filename, file_type
+	local current_field_name
+	local extra_fields = {}
+	local name = ""
+	local value = ""
 	while true do
 		local typ, res, err = form:read()
 		if not typ then
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		end
 		
 		if typ == "header" then
 			if not _M.table_is_array(res) then
-				return nil, nil, nil, "res is not array"
+				return nil, nil, nil, nil, "res is not array"
 			end
 
-			if res[1] == "Content-Disposition" then
-				local m, err = smatch(res[2], 'filename="([^"]+)"', "jo")
-				if err then
-					return nil, nil, nil, err
+			name = res[1]
+			value = res[2]
+
+			if name == "Content-Disposition" then
+				local name_match = smatch(value, 'name="([^"]+)"', "jo")
+				current_field_name = name_match and name_match[1] or nil
+
+				local file_match = smatch(value, 'filename="([^"]+)"', "jo")
+				if file_match then
+					origin_filename = file_match[1]
+				else
+					origin_filename = nil
 				end
-				if not m then
-					return nil, nil, nil, "not match filename"
-				end
-				origin_filename = m[1]
-			elseif res[1] == "Content-Type" then
-				file_type = res[2]
+			elseif name == "Content-Type" then
+				file_type = value
 			end
 
 			if origin_filename and file_type then
 				if next(allowed_types) and not allowed_types[file_type] then
-					return nil, nil, "file type not allowed"
+					return nil, nil, nil, nil, "file type not allowed"
 				end
 
 				if usePath then
@@ -325,12 +342,18 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 				end
 				file, err = io_open(file_name, "wb+")
 				if not file then
-					return nil, nil, nil, err
+					return nil, nil, nil, nil, err
 				end
 			end
 		elseif typ == "body" then
 			if file then
 				file:write(res)
+			elseif current_field_name then
+				if extra_fields[current_field_name] then
+					extra_fields[current_field_name] = extra_fields[current_field_name] .. res
+				else
+					extra_fields[current_field_name] = res
+				end
 			end
 		elseif typ == "part_end" then
 			if file then
@@ -338,13 +361,16 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 				file = nil
 			end
 		elseif typ == "eof" then
+			if current_field_name then
+				current_field_name = nil
+			end
 			break
 		else
 			-- do nothing
 		end
 	end
 
-	return file_name, origin_filename, file_type, nil
+	return file_name, origin_filename, _M.basename(file_type), extra_fields, nil
 end
 
 return _M
