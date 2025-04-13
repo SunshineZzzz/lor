@@ -68,9 +68,13 @@ function _M.verify_password(password, hashed_password)
 	if not computed_hash then
 		return false, "hash computation failed: " .. err
 	end
-	
+
 	-- 比较哈希值
-	return computed_hash == hashed_password, nil
+	if computed_hash ~= hashed_password then
+		return false, "hashes do not match"
+	end
+
+	return true, nil
 end
 
 return _M
