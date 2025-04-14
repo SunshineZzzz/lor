@@ -180,7 +180,7 @@ function _M._exec(self, sql, out_mysql)
 	end
 
 	if not out_mysql then
-		ok, err = self:_set_keepalive(mysql)
+		local ok, err = self:_set_keepalive(mysql)
 		if not ok then
 			mysql:close()
 		end
@@ -230,53 +230,53 @@ function _M.begin(self)
 		return nil, err
 	end
 
-    local res, err = mysql:query("BEGIN")
-    if not res then
-        mysql:close()
-        return nil, err
-    end
+	local res, err = mysql:query("BEGIN")
+	if not res then
+		mysql:close()
+		return nil, err
+	end
 
-    return mysql, nil
+	return mysql, nil
 end
 
 -- 提交事务
 function _M.commit(self, mysql)
-    if not mysql then
-        return false, "no active transaction"
-    end
+	if not mysql then
+		return false, "no active transaction"
+	end
 
-    local res, err = mysql:query("COMMIT")
-    if not res then
-        mysql:close()
-        return false, err
-    end
+	local res, err = mysql:query("COMMIT")
+	if not res then
+		mysql:close()
+		return false, err
+	end
 
-    local ok, err = self:_set_keepalive(mysql)
-    if not ok then
-        mysql:close()
-    end
+	local ok, err = self:_set_keepalive(mysql)
+	if not ok then
+		mysql:close()
+	end
 
-    return true, nil
+	return true, nil
 end
 
 -- 回滚事务
 function _M.rollback(self, mysql)
-    if not mysql then
-        return false, "no active transaction"
-    end
+	if not mysql then
+		return false, "no active transaction"
+	end
 
-    local res, err = mysql:query("ROLLBACK")
-    if not res then
-        mysql:close()
-        return false, err
-    end
+	local res, err = mysql:query("ROLLBACK")
+	if not res then
+		mysql:close()
+		return false, err
+	end
 
-    local ok, err = self:_set_keepalive(mysql)
-    if not ok then
-        mysql:close()
-    end
+	local ok, err = self:_set_keepalive(mysql)
+	if not ok then
+		mysql:close()
+	end
 
-    return true, nil
+	return true, nil
 end
 
 -- select
