@@ -11,6 +11,7 @@ local sreverse = string.reverse
 local smatch = ngx.re.match
 local sgmatch = ngx.re.gmatch
 local table_insert = table.insert
+local table_concat = table.concat
 local json = require("cjson")
 local lfs = require('resty.lfs_ffi')
 local OS = require("ffi").os
@@ -371,6 +372,20 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 	end
 
 	return file_name, origin_filename, _M.basename(file_type), extra_fields, nil
+end
+
+-- 将数组转换为参数占位符和值列表
+function _M.build_condition(arr)
+    if type(arr) ~= "table" or #arr == 0 then
+        return nil, nil
+    end
+    local placeholders = {}
+    local values = {}
+    for _, v in ipairs(arr) do
+        table_insert(placeholders, "?")
+        table_insert(values, v)
+    end
+    return table_concat(placeholders, ","), values
 end
 
 return _M

@@ -157,4 +157,9 @@ function Response:set_header(key, value)
 	ngx.header[key] = value
 end
 
+-- 结束
+function Response:eof()
+	ngx.eof()
+end
+
 return Response
