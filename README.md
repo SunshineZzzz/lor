@@ -19,6 +19,8 @@ exit /b %ERRORLEVEL%
 ```cmd
 bustedforresty.bat .
 ```
+5. 一些笔记
+[笔记](note.md)
 # Lor
 
 [![https://travis-ci.org/sumory/lor.svg?branch=master](https://travis-ci.org/sumory/lor.svg?branch=master)](https://travis-ci.org/sumory/lor)  [![GitHub release](https://img.shields.io/github/release/sumory/lor.svg)](https://github.com/sumory/lor/releases/latest) [![license](https://img.shields.io/github/license/sumory/lor.svg)](https://github.com/sumory/lor/blob/master/LICENSE)
