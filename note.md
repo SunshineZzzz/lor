@@ -157,3 +157,95 @@ ngx.thread.spawn(query_mysql)      -- create thread 1
 ngx.thread.spawn(query_memcached)  -- create thread 2
 ngx.thread.spawn(query_http)       -- create thread 3
 ```
+
+8. Openresty实现了自己的协程调度器，转自[Openresty Lua协程调度机制](https://catbro666.github.io/posts/150430f0/)
+> OR在对协程调度上，最核心的改动是其创建新协程时的行为（coroutine.resume(), ngx.thread.spawn()）。它不会直接调用lua_resume()，而是先lua_yield()回到主线程，然后由主线程再根据情况lua_resume()下一个协程。Lua代码域内从来不会直接调用lua_resume()，理解了这一点你就理解了OpenResty协程调度的精髓。
+ 
+![openresty调度图](./img/openresty-lua-coroutine-schedule.svg)
+
+9. ngx.null,cdata:NULL和cjson.null为什么不直接用lua中的nil
+    - ngx.null，比如redis操作
+    ```lua
+    local res, err = red:get("dog")
+    if res ~= ngx.null then
+        res = res + "test"
+    end
+    ```
+    - cdata:NULL， LuaJIT FFI接口去调用C函数，而这个函数返回一个NULL指针
+    - cjson.null，json中的null
+    ```json
+    {
+    "success": true,
+    "data": {
+        "user": {
+        "id": 123,
+        "premiumMember": null
+        }
+    },
+    "error": null
+    }
+    ```
+
+nil在lua中有特殊的意义，如果一个变量被设置为nil相当于告知该变量未定义(不存在)一样，ngx.null和cjson.null表示的是为空，还有一个原因，在lua中表中**新建**一个key但是对应的val确实nil，这是无效的，可以看下面源码
+```lua
+local t = {}
+t.a = nil
+```
+![null](./img/null1.png)
+![null](./img/null2.png)
+![null](./img/null3.png)
+
+10. OpenResty 中 Lua 变量的范围
+    - 全局变量
+    > 在 OpenResty 里面，只有在 init_by_lua* 和 init_worker_by_lua* 阶段才能定义真正的全局变量。 这是因为其他阶段里面，OpenResty 会设置一个隔离的全局变量表，以免在处理过程污染了其他请求。 即使在上述两个可以定义全局变量的阶段，也尽量避免这么做。全局变量能解决的问题，用模块变量也能解决， 而且会更清晰、更干净。
+    - 模块变量
+    > 这里把定义在模块里面的变量称为模块变量。无论定义变量时有没有加 local，有没有通过 _M 把变量引用起来， 定义在模块里面的变量都是模块变量。
+    由于 Lua VM 会把 require 进来的模块缓存到 package.loaded 表里，除非设置了 lua_code_cache off， 模块里定义的变量都会被缓存起来。而且重要的是，模块变量在每个请求中是共享的。
+    ```lua
+    -- nginx.conf
+    -- location = /index {
+    -- content_by_lua_file conf/lua/web/index.lua;
+    -- }
+
+    -- index.lua
+    local var = require "var"
+
+    if var.calc() == 1 then
+        ngx.say("ok")
+    else
+        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+        ngx.say("error")
+    end
+
+    -- var.lua
+    local count = 1
+
+    local _M = {}
+
+    local function add()
+        count = count + 1
+    end
+
+    local function sub()
+        count = count - 1
+    end
+
+    function _M.calc()
+        add()
+        -- 模拟协程调度
+        ngx.sleep(ngx.time()%0.003)
+        sub()
+        return count
+    end
+
+    return _M
+    ```
+    - 本地变量
+    > 跟全局变量、模块变量相对，这里我们姑且把 *_by_lua* 里面定义的变量称之为本地变量。 本地变量仅在当前阶段有效，如果要跨阶段使用，需要借助 ngx.ctx 或者附加在模块变量里。
+
+11. Openresty性能优化
+- 避免使用阻塞操作
+- table.new(narray, nhash)
+- 优先使用OpenResty的正则
+
+12. 
