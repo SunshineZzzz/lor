@@ -9,7 +9,6 @@ local Request = require("lor.lib.request")
 local Response = require("lor.lib.response")
 local Application = require("lor.lib.application")
 local Wrap = require("lor.lib.wrap")
-local Debug = require("lor.lib.debug")
 
 local createApplication = function(options)
 	if options and options.debug and type(options.debug) == 'boolean' then

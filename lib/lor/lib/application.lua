@@ -109,7 +109,7 @@ function App:handle(req, res, callback)
 	end
 
 	local err_msg
-	local ok, e = xpcall(function()
+	local ok, _ = xpcall(function()
 		router:handle(req, res, done)
 	end, function(msg)
 		err_msg = msg
