@@ -1,7 +1,7 @@
 -- Comment: mysql封装
 
 local setmetatable = setmetatable
-local rawget = rawget
+-- local rawget = rawget
 local type = type
 local ipairs = ipairs
 local table_insert = table.insert
@@ -108,7 +108,7 @@ local function parse_sql(sql, ...)
 	end
 
 	local newParams = utils.new_table(0, #params)
-	for i, v in ipairs(params) do
+	for _, v in ipairs(params) do
 		if v and type(v) == "table" then
 			return nil, "parse sql error"
 		end
@@ -120,7 +120,7 @@ local function parse_sql(sql, ...)
 
 	local t = utils.split(sql, "\\?", "?")
 	return compose_sql(t, newParams)
-end 
+end
 
 -- 连接
 function _M._connect(self, mysql)
@@ -180,7 +180,7 @@ function _M._exec(self, sql, out_mysql)
 	end
 
 	if not out_mysql then
-		local ok, err = self:_set_keepalive(mysql)
+		local ok, _ = self:_set_keepalive(mysql)
 		if not ok then
 			mysql:close()
 		end
@@ -191,7 +191,8 @@ end
 
 -- 查询
 function _M._query(self, out_mysql, sql, ...)
-	local sql, err = parse_sql(sql, ...)
+	local err
+	sql, err = parse_sql(sql, ...)
 	if not sql then
 		return nil, err
 	end
@@ -225,12 +226,14 @@ function _M.begin(self)
 		return nil, err
 	end
 
-	local ok, err = self:_connect(mysql)
+	local ok
+	ok, err = self:_connect(mysql)
 	if not ok then
 		return nil, err
 	end
 
-	local res, err = mysql:query("BEGIN")
+	local res
+	res, err = mysql:query("BEGIN")
 	if not res then
 		mysql:close()
 		return nil, err
@@ -251,7 +254,8 @@ function _M.commit(self, mysql)
 		return false, err
 	end
 
-	local ok, err = self:_set_keepalive(mysql)
+	local ok
+	ok, err = self:_set_keepalive(mysql)
 	if not ok then
 		mysql:close()
 	end
@@ -271,7 +275,8 @@ function _M.rollback(self, mysql)
 		return false, err
 	end
 
-	local ok, err = self:_set_keepalive(mysql)
+	local ok
+	ok, err = self:_set_keepalive(mysql)
 	if not ok then
 		mysql:close()
 	end
@@ -300,7 +305,7 @@ function _M.tx_delete(self, out_mysql, sql, ...)
 end
 
 -- 创建
-function _M.new(self, config)
+function _M.new(config)
 	local conf = config or defaults
 	local err = check_conf(conf)
 	if err then

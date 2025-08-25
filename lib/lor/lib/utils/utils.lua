@@ -20,9 +20,12 @@ local os_rename = os.rename
 local io_open = io.open
 local upload = require("resty.upload")
 local next = next
+local table_isempty = table.isempty
+local table_isarray = table.isarray
+local table_shallow_clone = table.clone
 local ok, new_tab = pcall(require, "table.new")
 if not ok or type(new_tab) ~= "function" then
-	new_tab = function (narr, nrec) return {} end
+	new_tab = function () return {} end
 end
 
 local _M = {}
@@ -51,6 +54,11 @@ function _M.clone(o)
 	return _copy(o)
 end
 
+-- 浅拷贝
+function _M.shallow_clone(o)
+	return table_shallow_clone(o)
+end
+
 -- 去除字符串中多余的斜杠字符
 function _M.clear_slash(s)
 	local r = sgsub(s, "(/+)", "/", "jo")
@@ -59,22 +67,24 @@ end
 
 -- 表是否为空
 function _M.is_table_empty(t)
-	if t == nil or _G.next(t) == nil then
-		return true
-	else
-		return false
-	end
+	-- if t == nil or next(t) == nil then
+	-- 	return true
+	-- else
+	-- 	return false
+	-- end
+	return table_isempty(t)
 end
 
 -- 表是否为数组
 function _M.table_is_array(t)
-	if type(t) ~= "table" then return false end
-	local i = 0
-	for _ in pairs(t) do
-		i = i + 1
-		if t[i] == nil then return false end
-	end
-	return true
+	-- if type(t) ~= "table" then return false end
+	-- local i = 0
+	-- for _ in pairs(t) do
+	-- 	i = i + 1
+	-- 	if t[i] == nil then return false end
+	-- end
+	-- return true
+	return table_isarray(t)
 end
 
 -- 表b中的所有键值对混合到表a中
@@ -97,7 +107,7 @@ function _M.json_encode(data, empty_table_as_object)
 	local json_value
 	if json.encode_empty_table_as_object then
 		-- empty table encoded as array default
-		json.encode_empty_table_as_object(empty_table_as_object or false) 
+		json.encode_empty_table_as_object(empty_table_as_object or false)
 	end
 	-- windows已经默认将稀疏数组编码为JSON对象
 	-- if require("ffi").os ~= "Windows" then
@@ -111,7 +121,8 @@ end
 
 -- json反序列化
 function _M.json_decode(str)
-	local ok, data = pcall(json.decode, str)
+	local data
+	ok, data = pcall(json.decode, str)
 	if ok then
 		return data
 	end
@@ -149,7 +160,7 @@ function _M.is_match(uri, pattern)
 		return false
 	end
 
-	local ok = smatch(uri, pattern, "jo")
+	ok = smatch(uri, pattern, "jo")
 	if ok then return true else return false end
 end
 
@@ -296,7 +307,7 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 	end
 
 	form:set_timeout(config.recieve_timeout)
-	
+
 	local file
 	local file_name, origin_filename, file_type
 	local current_field_name
@@ -304,11 +315,11 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 	local name = ""
 	local value = ""
 	while true do
-		local typ, res, err = form:read()
+		local typ, res, errs = form:read()
 		if not typ then
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, nil, errs
 		end
-		
+
 		if typ == "header" then
 			if not _M.table_is_array(res) then
 				return nil, nil, nil, nil, "res is not array"

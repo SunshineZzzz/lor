@@ -69,7 +69,7 @@ end
 -- 只要是ngx_null就返回true
 local function is_redis_null(res)
 	if type(res) == "table" then
-		for k,v in pairs(res) do
+		for _, v in pairs(res) do
 			if v ~= ngx_null then
 				return false
 			end
@@ -96,14 +96,16 @@ local function do_command(self, cmd, ... )
 		return nil, err
 	end
 
-	local ok, err = self:_connect(redis)
+	local ok
+	ok, err = self:_connect(redis)
 	if not ok then
 		redis:close()
 		return nil, err
 	end
 
 	local fun = redis[cmd]
-	local result, err = fun(redis, ...)
+	local result
+	result, err = fun(redis, ...)
 	if not result then
 		redis:close()
 		return nil, err
@@ -112,7 +114,7 @@ local function do_command(self, cmd, ... )
 	if is_redis_null(result) then
 		result = nil
 	end
-	
+
 	ok, err = self._set_keepalive(redis)
 	if not ok then
 		redis:close()
@@ -127,33 +129,33 @@ setmetatable(_M, {__index = function(self, cmd)
 	local method = function(self, ...)
 		return do_command(self, cmd, ...)
 	end
-	_M[cmd] = method
+	self[cmd] = method
 	return method
 end})
 
 -- 连接
 function _M._connect(self, redis)    
 	redis:set_timeouts(self.timeout, self.timeout, self.timeout)
-	
+
 	local ok, err = redis:connect(self.host, self.port)
 	if not ok then
 		return nil, err
 	end
 
 	if self.password then
-		local times, err = redis:get_reused_times()
+		_, err = redis:get_reused_times()
 		if err then
 			return nil, err
 		end
 
-		local ok, err = redis:auth(self.password)
+		ok, err = redis:auth(self.password)
 		if not ok then
 			return nil, err
 		end
 	end
 
 	if self.index ~= 0 then
-		local ok, err = redis:select(db_index)
+		local ok, err = redis:select(self.index)
 		if not ok then
 			return nil, err
 		end
@@ -179,7 +181,7 @@ end
 
 -- 提交pipiline
 function _M.commit_pipeline(self)
-	local _reqs = rawget(self, "_reqs") 
+	local _reqs = rawget(self, "_reqs")
 	self._reqs = nil
 
 	if nil == _reqs or 0 == #_reqs then
@@ -191,7 +193,8 @@ function _M.commit_pipeline(self)
 		return nil, err
 	end
 
-	local ok, err = self:_connect(redis)
+	local ok
+	ok, err = self:_connect(redis)
 	if not ok then
 		redis:close()
 		return nil, err
@@ -204,7 +207,8 @@ function _M.commit_pipeline(self)
 		fun(redis, unpack(vals))
 	end
 
-	local results, err = redis:commit_pipeline()
+	local results
+	results, err = redis:commit_pipeline()
 	if not results then
 		redis:close()
 		return nil, err
@@ -213,7 +217,7 @@ function _M.commit_pipeline(self)
 	if is_redis_null(results) then
 		results = {}
 	end
-	
+
 	ok, err = self._set_keepalive(self, redis)
 	if not ok then
 		redis:close()
@@ -235,13 +239,15 @@ function _M.subscribe(self, channel)
 		return nil, err
 	end
 
-	local ok, err = self:_connect(redis)
+	local ok
+	ok, err = self:_connect(redis)
 	if not ok then
 		redis:close()
 		return nil, err
 	end
 
-	local res, err = redis:subscribe(channel)
+	local res
+	res, err = redis:subscribe(channel)
 	if not res then
 		redis:close()
 		return nil, err
@@ -256,20 +262,19 @@ function _M.subscribe(self, channel)
 			end
 			return res, nil
 		end
-	  
+
 		redis:unsubscribe(channel)
-		local ok, err = self._set_keepalive(self, redis)
+		ok, err = self._set_keepalive(self, redis)
 		if not ok then
 			redis:close()
 		end
-		return
 	end
 
 	return do_read_func
 end
 
 -- 创建
-function _M.new(self, config)
+function _M.new(config)
 	local conf = config or defaults
 	local err = check_conf(conf)
 	if err then

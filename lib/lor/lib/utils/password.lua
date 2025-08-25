@@ -1,5 +1,5 @@
 -- Comment: 简单password加密
---        : todo bcrypt
+--        : todo 升级为bcrypt算法
 
 local resty_sha512 = require "resty.sha512"
 local resty_random = require "resty.random"
@@ -29,16 +29,16 @@ end
 
 -- 创建密码哈希
 function _M.hash_password(password, salt, iterations)
-	local salt = salt or _M.generate_salt(DEFAULT_SALT_LEN)
-	local iterations = iterations or DEFAULT_ITERATIONS
-		
+	salt = salt or _M.generate_salt(DEFAULT_SALT_LEN)
+	iterations = iterations or DEFAULT_ITERATIONS
+
 	local hash = _hash_data(salt .. password)
 
 	-- 迭代哈希
 	for _ = 1, iterations - 1 do
 		hash = _hash_data(hash .. salt .. password)
 	end
-	
+
 	-- 返回格式: iterations$salt$hash
 	return table_concat({
 		iterations,
@@ -52,19 +52,19 @@ function _M.verify_password(password, hashed_password)
 	if not password or not hashed_password then
 		return false, "missing arguments"
 	end
-	
+
 	-- 解析存储的哈希
 	local parts = utils.split(hashed_password, "\\$", "$")
 	if not parts or #parts ~= 3 then
 		return false, "invalid password format"
 	end
-	
+
 	local iterations = tonumber(parts[1])
 	local salt = parts[2]
-	
+
 	-- 使用相同参数重新计算哈希
 	local computed_hash, err = _M.hash_password(password, salt, iterations)
-	
+
 	if not computed_hash then
 		return false, "hash computation failed: " .. err
 	end

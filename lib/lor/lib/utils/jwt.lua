@@ -1,4 +1,4 @@
--- Comment: jwt实现，https://github.com/jitsi/jitsi-meet/blob/master/resources/prosody-plugins/luajwtjitsi.lib.lua
+-- Comment: 跨域认证，jwt实现，https://github.com/jitsi/jitsi-meet/blob/master/resources/prosody-plugins/luajwtjitsi.lib.lua
 
 local os_time = os.time
 local tostring = tostring
