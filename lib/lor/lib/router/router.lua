@@ -15,7 +15,7 @@ local string_lower = string.lower
 
 local utils = require("lor.lib.utils.utils")
 local supported_http_methods = require("lor.lib.methods")
-local debug = require("lor.lib.debug")
+-- local debug = require("lor.lib.debug")
 local Trie = require("lor.lib.trie")
 local random = utils.random
 local mixin = utils.mixin
@@ -45,24 +45,24 @@ local allowed_conf = {
 }
 
 -- 恢复一个对象的某些属性到它们原始的状态
-local function restore(fn, obj)
-	local origin = {
-		path = obj['path'],
-		query = obj['query'],
-		next = obj['next'],
-		locals = obj['locals'],
-	}
+-- local function restore(fn, obj)
+-- 	local origin = {
+-- 		path = obj['path'],
+-- 		query = obj['query'],
+-- 		next = obj['next'],
+-- 		locals = obj['locals'],
+-- 	}
 
-	return function(err)
-		obj['path'] = origin.path
-		obj['query'] = origin.query
-		obj['next'] = origin.next
-		obj['locals'] = origin.locals
-		fn(err)
-	end
-end
+-- 	return function(err)
+-- 		obj['path'] = origin.path
+-- 		obj['query'] = origin.query
+-- 		obj['next'] = origin.next
+-- 		obj['locals'] = origin.locals
+-- 		fn(err)
+-- 	end
+-- end
 
--- 构造包含所有相关中间件和处理函数的执行栈
+-- 构造包含所有相关中间件和处理函数的执行栈，{根节点中间件，子节点们中间件，当前节点中间件，当前节点处理函数}
 local function compose_func(matched, method)
 	if not matched or type(matched.pipeline) ~= "table" then
 		return nil
@@ -95,7 +95,7 @@ local function compose_func(matched, method)
 end
 
 -- 构造错误处理函数的执行栈
--- 当前节点到父节点错误中间件
+-- 当前节点到父节点错误中间件，{当前节点错误中间件，子节点们错误中间件，根节点错误中间件}
 local function compose_error_handler(node)
 	if not node then
 		return nil
@@ -211,7 +211,7 @@ function Router:handle(req, res, out)
 		end
 
 		local err_msg
-		local ok, ee = xpcall(function()
+		local ok, _ = xpcall(function()
 			handler.func(req, res, next)
 			req.params = mixin(parsed_params, req.params)
 		end, function(msg)
@@ -257,7 +257,7 @@ function Router:error_handle(err_msg, req, res, node, done)
 			return done(err)
 		end
 
-		local ok, ee = xpcall(function()
+		local ok, _ = xpcall(function()
 			error_handler.func(err, req, res, next)
 		end, function(msg)
 			if msg then
@@ -367,7 +367,7 @@ function Router:conf(setting, val)
 	local allow = allowed_conf[setting]
 	if allow then
 		if allow.t == "boolean" then
-			
+
 			if val == "true" or val == true then
 				self.trie[setting] = true
 			elseif val == "false" or val == false then

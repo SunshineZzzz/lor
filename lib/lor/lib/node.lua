@@ -66,7 +66,7 @@ function Node:new(root)
 		pattern = "",
 		-- 结束标记(完整路由结束标记)
 		endpoint = false,
-		-- 父亲节点
+		-- 父亲节点，Node
 		parent = nil,
 		-- 孩子节点，NodeHolder{key:frag, node:Node{...}}
 		children = {},
@@ -117,7 +117,7 @@ function Node:find_handler(method)
 	if not self.handlers or not self.handlers[method] or #self.handlers[method] == 0 then
 		return false
 	end
-	
+
 	return true
 end
 
@@ -276,7 +276,7 @@ function Node:remove_nested_property(node)
 		for _, v in ipairs(children) do
 			local c = v.val
 			-- remove action func
-			if c.handlers then 
+			if c.handlers then
 				for _, h in pairs(c.handlers) do
 					if h then
 						for _, action in ipairs(h) do

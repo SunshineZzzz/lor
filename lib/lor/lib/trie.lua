@@ -70,7 +70,7 @@ local function get_or_new_node(parent, frag, ignore_case)
 	else
 		local first = string_sub(frag, 1, 1)
 		-- 是否包含动态参数
-		if first ==  ":" then
+		if first == ":" then
 			local name = string_sub(frag, 2)
 			local trailing = string_sub(name, -1)
 
@@ -163,7 +163,7 @@ local function get_pipeline(node)
 	return pipeline
 end
 
--- URL路由前缀树
+-- URL路由前缀树，优先匹配静态路由，实在匹配不到再进行动态路由匹配
 local Trie = {}
 
 -- 新建
@@ -171,13 +171,13 @@ function Trie:new(opts)
 	opts = opts or {}
 	local trie = {
 		-- 路由匹配时，回退查找最大深度
-		max_fallback_depth = 100, 
+		max_fallback_depth = 100,
 
 		-- URI中允许的最大路径段数 e.g. a long uri, /a/b/c/d/e/f/g/h/i/j/k...
 		max_uri_segments = 100,
-		
+
 		-- 是否无视大小写
-		ignore_case = true, 
+		ignore_case = true,
 
 		-- 路由匹配是否严格
 		-- [true]: "test.com/" is not the same with "test.com".
@@ -223,7 +223,7 @@ function Trie:add_node(pattern)
 	return node
 end
 
--- 给点路径片段获取给定父节点下的动态路由参数节点
+-- 给定的父节点下寻找与给定路径段匹配的动态节点
 function Trie:get_colon_node(parent, segment)
 	local child = parent.colon_child
 	if child and child.regex and not utils.is_match(segment, child.regex) then
@@ -241,7 +241,7 @@ function Trie:fallback_lookup(fallback_stack, segments, params)
 		return false
 	end
 
-	-- 取出栈顶
+	-- 取出栈顶，后进先出，从最近的、最可能匹配成功的回退点开始尝试
 	local fallback = table_remove(fallback_stack, #fallback_stack)
 	local segment_index = fallback.segment_index
 	local parent = fallback.colon_node
@@ -308,7 +308,7 @@ function Trie:find_matched_child(parent, segment)
 		else
 			return child, nil, false
 		end
-	else 
+	else
 		-- not child
 		if colon_node then
 			-- 后续不再压栈
@@ -383,7 +383,7 @@ function Trie:_match(path)
 		-- print(is_same)
 		-- print(i)
 
-		-- 优先匹配静态，实在匹配不到再进行动态匹配
+		-- 优先匹配静态路由，实在匹配不到再进行动态路由匹配
 		-- 存在动态和静态匹配，先把动态存储起来
 		if colon_node and not is_same then
 			table_insert(fallback_stack, {
@@ -392,6 +392,7 @@ function Trie:_match(path)
 			})
 		end
 
+		-- 说明无论是静态路由还是动态路由都没有匹配到
 		-- both exact child and colon child is nil
 		if node == nil then
 			-- should not set parent value
@@ -415,14 +416,14 @@ function Trie:_match(path)
 	-- 没有精确匹配，只能在动态路由中进行回溯匹配
 	if not matched.node then
 		local depth = 0
-		local exit = false
+		local exit = nil
 
 		while not exit do
 			depth = depth + 1
 			if depth > self.max_fallback_depth then
 				error("fallback lookup reaches the limit: " .. self.max_fallback_depth)
 			end
-			
+
 			exit = self:fallback_lookup(fallback_stack, segments, params)
 			if exit then
 				matched = exit

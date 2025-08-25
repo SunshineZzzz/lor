@@ -11,7 +11,7 @@ local table_insert = table.insert
 local unpack = table.unpack or unpack
 
 local supported_http_methods = require("lor.lib.methods")
-local debug = require("lor.lib.debug")
+-- local debug = require("lor.lib.debug")
 local utils = require("lor.lib.utils.utils")
 local random = utils.random
 local clone = utils.clone
