@@ -1,4 +1,4 @@
--- Comment: 安全回话数据中间件
+-- Comment: 会话中间件，基于Cookie的会话方案，将会话数据加密后存储在用户的浏览器Cookie中
 
 local type, xpcall = type, xpcall
 local traceback = debug.traceback
@@ -50,14 +50,10 @@ local session_middleware = function(config)
 		-- default session timeout is 3600 seconds
 		config.timeout = 3600
 	end
-	
+
 	local err_tip = "session_aes_key should be set for session middleware"
 	-- backward compatibility for lor < v0.3.2
 	config.session_aes_key = config.session_aes_key or "custom_session_aes_key"
-	if not config.session_aes_key then
-		ngx.log(ngx.ERR, err_tip)
-	end
-
 	-- session关键字
 	local session_key = config.session_key
 	-- 秘钥
@@ -76,23 +72,28 @@ local session_middleware = function(config)
 
 	ngx.log(ngx.INFO, "session middleware initialized")
 	return function(req, res, next)
+		_ = res
+
 		if not session_aes_key then
-			return next(err_tip)
+			next(err_tip)
+			return
 		end
 
 		local cookie, err = ck:new()
 		if not cookie then
-			ngx.log(ngx.ERR, "cookie is nil:", err)
+			next("session middleware, cookie is nil:" .. err)
+			return
 		end
 
 		local current_session
 		local session_data, err = cookie:get(session_key)
 		if err then
-			ngx.log(ngx.ERR, "cannot get session_data:", err)
-		else
-			if session_data then
-				current_session = parse_session(session_data, session_aes_key, session_aes_secret)
-			end
+			next("session middleware, cannot get session_data:" .. err)
+			return
+		end
+
+		if session_data then
+			current_session = parse_session(session_data, session_aes_key, session_aes_secret)
 		end
 		current_session = current_session or {}
 
@@ -126,14 +127,16 @@ local session_middleware = function(config)
 					path = "/"
 				})
 
-				ngx.log(ngx.INFO, "session.set: ", value)
+				-- ngx.log(ngx.INFO, "session.set: ", value)
 
 				if err or not ok then
-					return ngx.log(ngx.ERR, "session.set error:", err)
+					return false, err
 				end
+
+				return true, nil
 			end,
 			-- 刷新会话，即延长会话的有效期
-			refresh = function() 
+			refresh = function()
 				if session_data and session_data ~= "" then
 					local expires = http_time(ngx_time() + timeout)
 					local max_age = timeout
@@ -145,8 +148,10 @@ local session_middleware = function(config)
 						path = "/"
 					})
 					if err or not ok then
-						return ngx.log(ngx.ERR, "session.refresh error:", err)
+						return false, err
 					end
+
+					return true, nil
 				end
 			end,
 			-- 获取会话中存储的值
@@ -165,11 +170,10 @@ local session_middleware = function(config)
 					path = "/"
 				})
 				if err or not ok then
-					ngx.log(ngx.ERR, "session.destroy error:", err)
-					return false
+					return false, err
 				end
 
-				return true
+				return true, nil
 			end
 		}
 

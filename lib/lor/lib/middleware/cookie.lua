@@ -27,7 +27,9 @@ local cookie_middleware = function()
 	return function(req, res, next)
 		local COOKIE, err = ck:new()
 
-		if not COOKIE then 
+		if not COOKIE then
+			ngx.log(ngx.ERR, "cookie_middleware ck:new error:", err)
+
 			req.cookie = {} -- all cookies
 			res._cookie = nil
 		else
@@ -35,14 +37,14 @@ local cookie_middleware = function()
 				set = function(...)
 					local _cookie = COOKIE
 					if not _cookie then
-						return ngx.log(ngx.ERR, "response#none _cookie found to write") 
+						return false, "cookie_middleware _cookie not found"
 					end
 
 					local p = ...
 					if type(p) == "table" then
 						local ok, err = _cookie:set(p)
 						if not ok then
-							return ngx.log(ngx.ERR, err)
+							return false, err
 						end
 					else
 						local params = { ... }
@@ -51,36 +53,46 @@ local cookie_middleware = function()
 							value = params[2] or "",
 						})
 						if not ok then
-							return ngx.log(ngx.ERR, err)
+							return false, err
 						end
 					end
+
+					return true, nil
 				end,
 
-				get = function (name) 
+				get = function (name)
 					local _cookie = COOKIE
+					if not _cookie then
+						return nil, "cookie_middleware _cookie not found"
+					end
+
 					local field, err = _cookie:get(name)
 
 					if not field then
-						return nil
-					else
-						return field
+						return nil, err
 					end
+
+					return field, nil
 				end,
 
 				get_all = function ()
 					local _cookie = COOKIE
+					if not _cookie then
+						return false, "cookie_middleware _cookie not found"
+					end
+
 					local fields, err = _cookie:get_all()
 
 					local t = {}
 					if not fields then
-						return nil
-					else 
+						return nil, err
+					else
 						for k, v in pairs(fields) do
 							if k and v then
 								t[k] = v
 							end
 						end
-						return t
+						return t, nil
 					end
 				end
 			}

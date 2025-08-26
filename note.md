@@ -186,7 +186,7 @@ ngx.thread.spawn(query_http)       -- create thread 3
     }
     ```
 
-nil在lua中有特殊的意义，如果一个变量被设置为nil相当于告知该变量未定义(不存在)一样，ngx.null和cjson.null表示的是为空，还有一个原因，在lua中表中**新建**一个key但是对应的val确实nil，这是无效的，可以看下面源码
+nil在lua中有特殊的意义，如果一个变量被设置为nil相当于告知该变量未定义(不存在)一样，ngx.null和cjson.null表示的是为空，还有一个原因，在lua中表中**新建**一个key但是对应的val却是nil，这是无效的，可以看下面源码
 ```lua
 local t = {}
 t.a = nil
@@ -248,4 +248,39 @@ t.a = nil
 - table.new(narray, nhash)
 - 优先使用OpenResty的正则
 
-12. 
+12. lor架构解析
+    - 简单的使用方式
+    ```lua
+    --[[
+        ngx.conf
+
+        # lor runtime
+        location / {
+			content_by_lua_file ./app/main.lua;
+		}
+    ]]
+
+    -- main.lua
+    local app = require("app.server")
+    app:run()
+
+    -- server.lua
+    local router = require("app.router")
+    local lor = require("lor.index")
+    local app = lor()
+
+    router(app)
+
+    return app
+
+    -- router.lua
+    return function(app)
+        app:get("/", function(req, res, next)
+            res:send("hello world!")
+        end)
+    end
+    ```
+    - lor流程
+  
+    ![lor_flow](./img/lor_flow.drawio.svg)
+    
