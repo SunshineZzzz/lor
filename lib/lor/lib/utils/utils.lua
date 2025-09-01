@@ -20,9 +20,9 @@ local os_rename = os.rename
 local io_open = io.open
 local upload = require("resty.upload")
 local next = next
-local table_isempty = table.isempty
-local table_isarray = table.isarray
-local table_shallow_clone = table.clone
+local table_isempty = require "table.isempty"
+local table_isarray = require "table.isarray"
+local table_shallow_clone = require "table.clone"
 local ok, new_tab = pcall(require, "table.new")
 if not ok or type(new_tab) ~= "function" then
 	new_tab = function () return {} end
@@ -299,6 +299,13 @@ function _M.rmkdir(path)
 end
 
 -- 上传文件
+-- config: 读取上传文件时的配置参数，{chunk_size=number, recieve_timeout=number}
+-- path: 文件保存的路径或者完整路径
+-- usePath: path参数是完整路径则为true，否则为false
+-- allowed_types: 允许上传的文件类型, 如 {["image/jpeg"]=1, ["image/png"]=1}
+-- 返回值: file_name(文件在服务器上保存的完整路径), origin_filename(用户上传的文件原始名称), 
+--         _M.basename(file_type)(文件的 MIME 类型), extra_fields(一个表，包含除文件外其他普通表单字段的键值对), 
+--         失败时的错误信息
 function _M.multipart_formdata(config, path, usePath, allowed_types)
 	allowed_types = allowed_types or {}
 	local form, err = upload:new(config.chunk_size)

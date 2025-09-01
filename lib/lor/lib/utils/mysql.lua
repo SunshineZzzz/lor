@@ -248,7 +248,7 @@ function _M.commit(self, mysql)
 		return false, "no active transaction"
 	end
 
-	local res, err = mysql:query("COMMIT")
+	local res, err = mysql:query("COMMIT;SET autocommit=1")
 	if not res then
 		mysql:close()
 		return false, err
@@ -305,7 +305,7 @@ function _M.tx_delete(self, out_mysql, sql, ...)
 end
 
 -- 创建
-function _M.new(config)
+function _M.new(self, config)
 	local conf = config or defaults
 	local err = check_conf(conf)
 	if err then
@@ -323,7 +323,7 @@ function _M.new(config)
 		keepalive = conf.keepalive or default.keepalive,
 		pool = conf.pool or default.pool,
 	}
-	return setmetatable(instance, {__index = _M}), nil
+	return setmetatable(instance, {__index = self}), nil
 end
 
 return _M
