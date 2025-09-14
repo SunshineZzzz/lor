@@ -270,6 +270,11 @@ function _M.file_exists(path)
 	return _M.attributes(path, "mode") == "file"
 end
 
+-- 文件大小
+function _M.file_size(path)
+	return _M.attributes(path, "size")
+end
+
 -- path规范
 function _M.path_normalize(path)
 	if OS == "Windows" then
@@ -304,19 +309,20 @@ end
 -- usePath: path参数是完整路径则为true，否则为false
 -- allowed_types: 允许上传的文件类型, 如 {["image/jpeg"]=1, ["image/png"]=1}
 -- 返回值: file_name(文件在服务器上保存的完整路径), origin_filename(用户上传的文件原始名称), 
---         _M.basename(file_type)(文件的 MIME 类型), extra_fields(一个表，包含除文件外其他普通表单字段的键值对), 
+--         file_size(文件大小，新增), file_type(文件的 MIME 类型), extra_fields(一个表，包含除文件外其他普通表单字段的键值对), 
 --         失败时的错误信息
 function _M.multipart_formdata(config, path, usePath, allowed_types)
 	allowed_types = allowed_types or {}
 	local form, err = upload:new(config.chunk_size)
 	if not form then
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	end
 
 	form:set_timeout(config.recieve_timeout)
 
 	local file
 	local file_name, origin_filename, file_type
+	local file_size = 0
 	local current_field_name
 	local extra_fields = {}
 	local name = ""
@@ -324,12 +330,12 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 	while true do
 		local typ, res, errs = form:read()
 		if not typ then
-			return nil, nil, nil, nil, errs
+			return nil, nil, nil, nil, nil, errs
 		end
 
 		if typ == "header" then
 			if not _M.table_is_array(res) then
-				return nil, nil, nil, nil, "res is not array"
+				return nil, nil, nil, nil, nil, "res is not array"
 			end
 
 			name = res[1]
@@ -351,7 +357,7 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 
 			if origin_filename and file_type then
 				if next(allowed_types) and not allowed_types[file_type] then
-					return nil, nil, nil, nil, "file type not allowed"
+					return nil, nil, nil, nil, nil, "file type not allowed"
 				end
 
 				if usePath then
@@ -359,14 +365,18 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 				else
 					file_name = string_format("%s%s", path, origin_filename)
 				end
+				
+				file_size = 0
+				
 				file, err = io_open(file_name, "wb+")
 				if not file then
-					return nil, nil, nil, nil, err
+					return nil, nil, nil, nil, nil, err
 				end
 			end
 		elseif typ == "body" then
 			if file then
 				file:write(res)
+				file_size = file_size + #res
 			elseif current_field_name then
 				if extra_fields[current_field_name] then
 					extra_fields[current_field_name] = extra_fields[current_field_name] .. res
@@ -376,6 +386,10 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 			end
 		elseif typ == "part_end" then
 			if file then
+				-- local _file_size, err = _M.file_size(file_name)
+				-- if not err and _file_size then
+				-- 	file_size = _file_size
+				-- end
 				file:close()
 				file = nil
 			end
@@ -389,7 +403,7 @@ function _M.multipart_formdata(config, path, usePath, allowed_types)
 		end
 	end
 
-	return file_name, origin_filename, _M.basename(file_type), extra_fields, nil
+	return file_name, origin_filename, file_size, _M.basename(file_type), extra_fields, nil
 end
 
 -- 将数组转换为参数占位符和值列表
