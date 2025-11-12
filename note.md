@@ -1,38 +1,62 @@
-1. Nginx整体架构图
+- [Nginx整体架构图](#nginx整体架构图)
+- [Nginx模块化设计](#nginx模块化设计)
+- [Nginx执行阶段](#nginx执行阶段)
+- [OpenResty执行阶段](#openresty执行阶段)
+- [Lua协程和Nginx事件机制相互配合](#lua协程和nginx事件机制相互配合)
+- [原生Lua coroutine接口](#原生lua-coroutine接口)
+- [ngx.thread.spawn](#ngxthreadspawn)
+- [OpenResty协程调度](#openresty协程调度)
+- [ngx.null,cdata:NULL,cjson.null](#ngxnullcdataNULLcjsonnull)
+- [OpenResty中Lua变量的范围](#openresty中lua变量的范围)
+    - [全局变量](#全局变量)
+    - [模块变量](#模块变量)
+    - [本地变量](#本地变量)
+- [Openresty性能优化](#openresty性能优化)
+- [lor架构解析](#lor架构解析)
+    - [简单的使用方式](#简单的使用方式)
+    - [lor流程](#lor流程)
+
+### Nginx整体架构图
    
 ![Nginx架构图](./img/nginx_architect.png)
 
-2. Nginx模块化设计
+### Nginx模块化设计
 
 ![Nginx模块](./img/nginx_module.png)
 
-3. Nginx执行阶段
+### Nginx执行阶段
+    
+1. postread - 读取请求行和请求头后的处理。
+2. server-rewrite - 服务器级别的URL重写。
+3. find-config - 寻找配置文件中的相关指令。
+4. rewrite - 根据配置进行URL重写。
+5. post-rewrite - 重写后的处理。
+6. preaccess - 访问权限前的检查。
+7. access - 访问权限控制。
+8. postaccess - 访问权限控制后的处理。
+9. try-files - 尝试访问文件或目录。
+10. content - 内容生成阶段。
+11. log - 日志记录阶段。
+
 ![Nginx执行阶段](./img/nginx_execphase.png)
-    - postread - 读取请求行和请求头后的处理。
-    - server-rewrite - 服务器级别的URL重写。
-    - find-config - 寻找配置文件中的相关指令。
-    - rewrite - 根据配置进行URL重写。
-    - post-rewrite - 重写后的处理。
-    - preaccess - 访问权限前的检查。
-    - access - 访问权限控制。
-    - postaccess - 访问权限控制后的处理。
-    - try-files - 尝试访问文件或目录。
-    - content - 内容生成阶段。
-    - log - 日志记录阶段。
-  
-4. OpenResty执行阶段, lua-nginx-module 以第三方模块的方式嵌入到 Nginx 的各个执行阶段里。
+
+### OpenResty执行阶段
+
+OpenResty执行阶段, lua-nginx-module 以第三方模块的方式嵌入到 Nginx 的各个执行阶段里。
    
 ![OpenResty执行阶段](./img/openresty_execphase1.png)
 ![OpenResty执行阶段](./img/openresty_execphase2.png)
 
-5. Lua协程和Nginx事件机制相互配合
+### Lua协程和Nginx事件机制相互配合
 
 ![openresty协程](./img/or_coroutine1.png)
 
-6. 原生Lua coroutine接口
->我们知道Lua是个非常轻巧的语言，它不像Go有自己的调度器。Lua原生的对协程的操作无非就是coroutine.resume()和coroutine.yield()。这两者是成对出现的，协程coroutine.yield()之后肯定回到父协程coroutine.resume()的地方，恢复子协程需要显式再次coroutine.resume()。如果要在Lua代码层面实现非阻塞I/O，那么父协程必须处理子协程I/O等待的情况，并在事件发生时恢复子协程的执行。如果需要同时进行多个任务，那么父协程就需要负责多个协程间的调度。因为协程的拓扑可能是一个复杂的树状结构，所以协程的调度管理将变得异常复杂。
+### 原生Lua coroutine接口
 
-7. ngx.thread.spawn
+我们知道Lua是个非常轻巧的语言，它不像Go有自己的调度器。Lua原生的对协程的操作无非就是coroutine.resume()和coroutine.yield()。这两者是成对出现的，协程coroutine.yield()之后肯定回到父协程coroutine.resume()的地方，恢复子协程需要显式再次coroutine.resume()。如果要在Lua代码层面实现非阻塞I/O，那么父协程必须处理子协程I/O等待的情况，并在事件发生时恢复子协程的执行。如果需要同时进行多个任务，那么父协程就需要负责多个协程间的调度。因为协程的拓扑可能是一个复杂的树状结构，所以协程的调度管理将变得异常复杂。
+
+### ngx.thread.spawn
+
 > 什么是“轻线程”？
 > 
 > “轻线程”是 OpenResty 框架的核心，它是一种特殊的 Lua 协程，由 ngx_lua 模块进行调度，用于高效地处理非阻塞 I/O 操作。它不是传统的操作系统线程。
@@ -158,35 +182,21 @@ ngx.thread.spawn(query_memcached)  -- create thread 2
 ngx.thread.spawn(query_http)       -- create thread 3
 ```
 
-8. Openresty实现了自己的协程调度器，转自[Openresty Lua协程调度机制](https://catbro666.github.io/posts/150430f0/)
+### openresty协程调度
+
+Openresty实现了自己的协程调度器，转自[Openresty Lua协程调度机制](https://catbro666.github.io/posts/150430f0/)
 > OR在对协程调度上，最核心的改动是其创建新协程时的行为（coroutine.resume(), ngx.thread.spawn()）。它不会直接调用lua_resume()，而是先lua_yield()回到主线程，然后由主线程再根据情况lua_resume()下一个协程。Lua代码域内从来不会直接调用lua_resume()，理解了这一点你就理解了OpenResty协程调度的精髓。
  
 ![openresty调度图](./img/openresty-lua-coroutine-schedule.svg)
 
-9. ngx.null,cdata:NULL和cjson.null为什么不直接用lua中的nil
-    - ngx.null，比如redis操作
-    ```lua
-    local res, err = red:get("dog")
-    if res ~= ngx.null then
-        res = res + "test"
-    end
-    ```
-    - cdata:NULL， LuaJIT FFI接口去调用C函数，而这个函数返回一个NULL指针
-    - cjson.null，json中的null
-    ```json
-    {
-    "success": true,
-    "data": {
-        "user": {
-        "id": 123,
-        "premiumMember": null
-        }
-    },
-    "error": null
-    }
-    ```
+### ngx.null,cdata:NULL,cjson.null
+
+ngx.null,cdata:NULL和cjson.null为什么不直接用lua中的nil
+
+cdata:NULL，LuaJIT FFI接口去调用C函数，而这个函数返回一个NULL指针
 
 nil在lua中有特殊的意义，如果一个变量被设置为nil相当于告知该变量未定义(不存在)一样，ngx.null和cjson.null表示的是为空，还有一个原因，在lua中表中**新建**一个key但是对应的val却是nil，这是无效的，可以看下面源码
+
 ```lua
 local t = {}
 t.a = nil
@@ -195,92 +205,125 @@ t.a = nil
 ![null](./img/null2.png)
 ![null](./img/null3.png)
 
-10. OpenResty 中 Lua 变量的范围
-    - 全局变量
-    > 在 OpenResty 里面，只有在 init_by_lua* 和 init_worker_by_lua* 阶段才能定义真正的全局变量。 这是因为其他阶段里面，OpenResty 会设置一个隔离的全局变量表，以免在处理过程污染了其他请求。 即使在上述两个可以定义全局变量的阶段，也尽量避免这么做。全局变量能解决的问题，用模块变量也能解决， 而且会更清晰、更干净。
-    - 模块变量
-    > 这里把定义在模块里面的变量称为模块变量。无论定义变量时有没有加 local，有没有通过 _M 把变量引用起来， 定义在模块里面的变量都是模块变量。
-    由于 Lua VM 会把 require 进来的模块缓存到 package.loaded 表里，除非设置了 lua_code_cache off， 模块里定义的变量都会被缓存起来。而且重要的是，模块变量在每个请求中是共享的。
-    ```lua
-    -- nginx.conf
-    -- location = /index {
-    -- content_by_lua_file conf/lua/web/index.lua;
-    -- }
+ngx.null，比如redis操作
 
-    -- index.lua
-    local var = require "var"
+```lua
+local res, err = red:get("dog")
+if res ~= ngx.null then
+    res = res + "test"
+end
+```
 
-    if var.calc() == 1 then
-        ngx.say("ok")
-    else
-        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-        ngx.say("error")
-    end
+cjson.null，json中的null
+```json
+{
+"success": true,
+"data": {
+    "user": {
+    "id": 123,
+    "premiumMember": null
+    }
+},
+"error": null
+}
+```
 
-    -- var.lua
-    local count = 1
+### OpenResty中Lua变量的范围
 
-    local _M = {}
+#### 全局变量
 
-    local function add()
-        count = count + 1
-    end
+> 在 OpenResty 里面，只有在 init_by_lua* 和 init_worker_by_lua* 阶段才能定义真正的全局变量。 这是因为其他阶段里面，OpenResty 会设置一个隔离的全局变量表，以免在处理过程污染了其他请求。 即使在上述两个可以定义全局变量的阶段，也尽量避免这么做。全局变量能解决的问题，用模块变量也能解决， 而且会更清晰、更干净。
 
-    local function sub()
-        count = count - 1
-    end
+#### 模块变量
 
-    function _M.calc()
-        add()
-        -- 模拟协程调度
-        ngx.sleep(ngx.time()%0.003)
-        sub()
-        return count
-    end
+> 这里把定义在模块里面的变量称为模块变量。无论定义变量时有没有加 local，有没有通过 _M 把变量引用起来， 定义在模块里面的变量都是模块变量。
+由于 Lua VM 会把 require 进来的模块缓存到 package.loaded 表里，除非设置了 lua_code_cache off， 模块里定义的变量都会被缓存起来。而且重要的是，模块变量在每个请求中是共享的。
 
-    return _M
-    ```
-    - 本地变量
-    > 跟全局变量、模块变量相对，这里我们姑且把 *_by_lua* 里面定义的变量称之为本地变量。 本地变量仅在当前阶段有效，如果要跨阶段使用，需要借助 ngx.ctx 或者附加在模块变量里。
+```lua
+-- nginx.conf
+-- location = /index {
+-- content_by_lua_file conf/lua/web/index.lua;
+-- }
 
-11. Openresty性能优化
-- 避免使用阻塞操作
-- table.new(narray, nhash)
-- 优先使用OpenResty的正则
+-- index.lua
+local var = require "var"
 
-12. lor架构解析
-    - 简单的使用方式
-    ```lua
-    --[[
-        ngx.conf
+if var.calc() == 1 then
+    ngx.say("ok")
+else
+    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+    ngx.say("error")
+end
 
-        # lor runtime
-        location / {
-			content_by_lua_file ./app/main.lua;
-		}
-    ]]
+-- var.lua
+local count = 1
 
-    -- main.lua
-    local app = require("app.server")
-    app:run()
+local _M = {}
 
-    -- server.lua
-    local router = require("app.router")
-    local lor = require("lor.index")
-    local app = lor()
+local function add()
+    count = count + 1
+end
 
-    router(app)
+local function sub()
+    count = count - 1
+end
 
-    return app
+function _M.calc()
+    add()
+    -- 模拟协程调度
+    ngx.sleep(ngx.time()%0.003)
+    sub()
+    return count
+end
 
-    -- router.lua
-    return function(app)
-        app:get("/", function(req, res, next)
-            res:send("hello world!")
-        end)
-    end
-    ```
-    - lor流程
+return _M
+```
+
+#### 本地变量
+
+> 跟全局变量、模块变量相对，这里我们姑且把 *_by_lua* 里面定义的变量称之为本地变量。 本地变量仅在当前阶段有效，如果要跨阶段使用，需要借助 ngx.ctx 或者附加在模块变量里。
+
+### Openresty性能优化
+
+1. 避免使用阻塞操作
+2. table.new(narray, nhash)
+3. 优先使用OpenResty的正则
+
+### lor架构解析
+
+#### 简单的使用方式
+
+```lua
+--[[
+    ngx.conf
+
+    # lor runtime
+    location / {
+        content_by_lua_file ./app/main.lua;
+    }
+]]
+
+-- main.lua
+local app = require("app.server")
+app:run()
+
+-- server.lua
+local router = require("app.router")
+local lor = require("lor.index")
+local app = lor()
+
+router(app)
+
+return app
+
+-- router.lua
+return function(app)
+    app:get("/", function(req, res, next)
+        res:send("hello world!")
+    end)
+end
+```
+#### lor流程
   
-    ![lor_flow](./img/lor_flow.drawio.svg)
+![lor_flow](./img/lor_flow.drawio.svg)
     
